@@ -1,0 +1,13 @@
+form#blog-form label {
+	float: none;
+	width: auto;
+	text-align: left;
+}
+form#blog-form textarea,
+form#blog-form input.text {
+	width: 610px;
+}
+
+form#blog-form #attr_is_draft label {
+	float: left;
+}

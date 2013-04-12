@@ -1,0 +1,64 @@
+#blog-comment-load-throbber {
+	float: right;
+}
+
+.comment-paging-throbber {
+	float: left;
+}
+
+.blog-comment .controls {
+	background: none;
+	border: 0;
+	margin: 0;
+}
+
+.blog-comment .controls a,
+.blog-comment .controls a:focus,
+.blog-comment .controls a:active,
+.blog-comment .controls a:visited {
+	margin: 0;
+}
+
+.controls a.comment-delete,
+.controls a.comment-delete:visited,
+.controls a.comment-delete:focus,
+.controls a.comment-delete:active {
+	color: #c50800;
+}
+
+.controls a.comment-delete:hover {
+	color: #8b0600;
+}
+
+.index-blog-entry, .blog-comment {
+	border-bottom: 1px solid #ccc;
+	margin: 0 0 10px;
+}
+
+#blog-archive-list .index-blog-entry {
+	padding: 10px;
+	margin: 0;
+	border: none;
+}
+
+#blog-archive-list .index-blog-entry p {
+	margin: 0;
+}
+
+#blog-archive-list .stripe-odd {
+	background: #eee;
+}
+
+#blog-archive-list .stripe-even {
+	background: #ddd;
+}
+
+.comment-heading {
+	border-bottom: 1px solid #ccc;
+	padding: 0 0 5px;
+	margin: 0 0 10px;
+}
+
+#blog-comment-form #attr_comments {
+	height: 80px;
+}
