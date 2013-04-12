@@ -12,6 +12,16 @@
 		return false;
 	});
 	jQuery('#blog-comment-form').submit(function() {
+		$('#comment-form-cancel-button').bind('ajaxSend', function() {
+			Biscuit.Console.log(arguments);
+			// Hide the cancel button while doing ajax request
+			$(this).hide();
+		});
+		$('#comment-form-cancel-button').bind('ajaxError', function() {
+			Biscuit.Console.log(arguments);
+			// Show the cancel button again if ajax request had an error
+			$(this).show();
+		});
 		new Biscuit.Ajax.FormValidator('blog-comment-form',{
 			ajax_submit: true,
 			update_div: 'blog-entry-comments',

@@ -1,4 +1,5 @@
 <?php
+require_once('models/blog_comment_subscriber.php');
 /**
  * Blog module
  *
@@ -82,10 +83,10 @@ class BlogManager extends AbstractModuleController {
 	 * @author Peter Epp
 	 */
 	public function run() {
-		if (defined('BLOG_RECENT_ENTRY_COUNT')) {
+		if (defined('BLOG_RECENT_ENTRY_COUNT') && (int)BLOG_RECENT_ENTRY_COUNT > 0) {
 			$this->_recent_entry_count = BLOG_RECENT_ENTRY_COUNT;
 		}
-		if (defined('BLOG_PAGINATION_LINKS_TO_DISPLAY')) {
+		if (defined('BLOG_PAGINATION_LINKS_TO_DISPLAY') && (int)BLOG_PAGINATION_LINKS_TO_DISPLAY > 0) {
 			$this->_pagination_links_to_display = BLOG_PAGINATION_LINKS_TO_DISPLAY;
 		}
 		if ($this->action() == 'index' || $this->action() == 'show') {
@@ -106,14 +107,14 @@ class BlogManager extends AbstractModuleController {
 			Console::log("BlogManager: cannot find FbLike extension");
 		}
 		$this->register_css(array('filename' => 'common.css', 'media' => 'screen'));
-		if (defined('BLOG_FEED_TITLE')) {
+		if (defined('BLOG_FEED_TITLE') && BLOG_FEED_TITLE != '') {
 			$feed_title = BLOG_FEED_TITLE;
 		} else {
 			$feed_title = 'Blog Feed :: '.SITE_TITLE;
 		}
 		$this->Biscuit->register_header_tag('link',array(
 			'rel' => 'alternate',
-			'type' => 'application/atom+xml',
+			'type' => 'application/rss+xml',
 			'title' => $feed_title,
 			'href' => STANDARD_URL.$this->url('rss')
 		));
@@ -387,13 +388,13 @@ class BlogManager extends AbstractModuleController {
 	protected function action_rss_feed() {
 		$this->Biscuit->render_with_template(false);
 		require_once('lib/vendor/FeedWriter/FeedWriter.php');
-		Response::content_type('application/atom+xml');
+		Response::content_type('application/rss+xml; charset=utf-8');
 		$blogs = $this->Blog->find_all(array('post_date' => 'DESC'));
 		$last_updated = strtotime($blogs[0]->post_date());
 
 		// Creating an instance of FeedWriter class. 
-		// The constant ATOM is passed to mention the version
-		$feed = new FeedWriter(ATOM);
+		// The constant RSS2 is passed to mention the version
+		$feed = new FeedWriter(RSS2);
 
 		// Setting the channel elements
 		// Use wrapper functions for common elements
@@ -403,32 +404,39 @@ class BlogManager extends AbstractModuleController {
 			$feed_title = 'Blog Feed :: '.SITE_TITLE;
 		}
 		$feed->setTitle($feed_title);
-		$feed->setLink(STANDARD_URL.'/blog_feed.xml');
+		$feed_link = STANDARD_URL.'/blog_feed.xml';
+		$feed->setLink($feed_link);
+		$feed->setDescription(H::purify_text($this->Biscuit->Page->content()));
 
 		// For other channel elements, use setChannelElement() function
-		$feed->setChannelElement('updated', date(DATE_ATOM , $last_updated));
-		$feed->setChannelElement('author', array('name' => SITE_OWNER));
+		$feed->setChannelElement('pubDate', date(DATE_RSS , $last_updated));
+		$feed->setChannelElement('lastBuildDate', date(DATE_RSS, time()));
+		$feed->setChannelElement('language', 'en-us');
 
 		$site_image = $this->Biscuit->site_image_url();
 		if (!empty($site_image)) {
-			$feed->setImage($feed_title,STANDARD_URL.$this->url('index'),$site_image);
+			$feed->setImage($feed_title,$feed_link,$site_image);
 		}
 
 		// Adding a feed. Genarally this protion will be in a loop and add all feeds.
 		foreach ($blogs as $blog) {
-			// Create an empty FeedItem
-			$newItem = $feed->createNewItem();
+			if (!$blog->is_draft()) {
+				// Create an empty FeedItem
+				$newItem = $feed->createNewItem();
+				$link = STANDARD_URL.$this->url('show',$blog);
 
-			// Add elements to the feed item
-			// Use wrapper functions to add common feed elements
-			$newItem->setTitle($blog->title());
-			$newItem->setLink(STANDARD_URL.$this->url('show',$blog));
-			$newItem->setDate(strtotime($blog->post_date()));
-			// Internally changed to "summary" tag for ATOM feed
-			$newItem->setDescription($blog->teaser());
+				// Add elements to the feed item
+				// Use wrapper functions to add common feed elements
+				$newItem->setTitle($blog->title());
+				$newItem->setLink($link);
+				$newItem->setDate(strtotime($blog->post_date()));
+				// Internally changed to "summary" tag for ATOM feed
+				$newItem->setDescription($blog->content());
+				$newItem->addElement('guid',$link);
 
-			// Now add the feed item	
-			$feed->addItem($newItem);
+				// Now add the feed item	
+				$feed->addItem($newItem);
+			}
 		}
 		// OK. Everything is done. Now genarate the feed.
 		ob_start();
@@ -525,6 +533,58 @@ class BlogManager extends AbstractModuleController {
 		} else if ($class_name == 'BlogComment') {
 			$this->set_successful_save_ajax_action('display_comments');
 			$this->set_view_var('new_comment_posted',true);
+			// $this->subscribe_user_to_comments($model);
+			$this->notify_comment_subscribers($model);
+		}
+	}
+	/**
+	 * If the user opted to subscribe to comments when they submitted their comment, add them to the subscriber list. This cannot be implemented until Biscuit has
+	 * mail queue capability
+	 *
+	 * @param string $blog_comment 
+	 * @return void
+	 * @author Peter Epp
+	 */
+	protected function subscribe_user_to_comments($blog_comment) {
+		if (!empty($this->params['subscribe_to_comments'])) {
+			$email = $blog_comment->email();
+			$subscriber_factory = new ModelFactory('BlogCommentSubscriber');
+			$subscriber_data = array(
+				'blog_id' => $blog_comment->blog_id(),
+				'name'    => $blog_comment->username(),
+				'email'   => $blog_comment->email()
+			);
+			$subscriber = $subscriber_factory->create($subscriber_data);
+			$subscriber->save();
+		}
+	}
+	/**
+	 * Send email notification to blog comment subscribers. Right now this ONLY sends email to the site owner. Mail queue needs to be implemented in Biscuit before
+	 * this feature can be fully realized.
+	 *
+	 * @param string $blog_comment 
+	 * @return void
+	 * @author Peter Epp
+	 */
+	protected function notify_comment_subscribers($blog_comment) {
+		if ($blog_comment->email() != OWNER_EMAIL) {
+			$blog = $this->Blog->find($blog_comment->blog_id());
+			$mail_options = array(
+				'From'         => 'blog@'.Request::host(),
+				'FromName'     => SITE_TITLE,
+				'ReplyTo'      => $blog_comment->email(),
+				'ReplyToName'  => $blog_comment->username(),
+				'Subject'      => "Comment made on '".$blog->title()."'",
+				'To'           => OWNER_EMAIL,
+				'ToName'       => SITE_OWNER
+			);
+			$message_vars = array(
+				'blog'         => $blog,
+				'blog_comment' => $blog_comment,
+				'blog_url'     => $this->url('show',$blog)
+			);
+			$mail = new Mailer();
+			$mail->send_mail('blog/views/comment_notification', $mail_options, $message_vars);
 		}
 	}
 	/**
@@ -588,6 +648,7 @@ class BlogManager extends AbstractModuleController {
 			$compiled_content = $this->Biscuit->get_compiled_content();
 			// Replace links that start with a slash with the fully qualified URL:
 			$compiled_content = preg_replace('/href=\"\//','href="'.STANDARD_URL.'/',$compiled_content);
+			$compiled_content = preg_replace('/src=\"\//','src="'.STANDARD_URL.'/',$compiled_content);
 			$this->Biscuit->set_compiled_content($compiled_content);
 			// Cache to file for subsequent requests:
 			file_put_contents(SITE_ROOT.'/blog_feed.xml',$compiled_content);
@@ -656,6 +717,15 @@ class BlogManager extends AbstractModuleController {
 		  KEY `user_id` (`username`),
 		  CONSTRAINT `blog_comments_ibfk_1` FOREIGN KEY (`blog_id`) REFERENCES `blogs` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+		DB::query("CREATE TABLE `blog_comment_subscribers` (
+		  `id` int(11) NOT NULL AUTO_INCREMENT,
+		  `blog_id` int(11) NOT NULL,
+		  `name` varchar(255) NOT NULL,
+		  `email` varchar(255) NOT NULL,
+		  PRIMARY KEY (`id`),
+		  KEY `blog_id` (`blog_id`),
+		  CONSTRAINT `blog_comment_subscribers_ibfk_1` FOREIGN KEY (`blog_id`) REFERENCES `blogs` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
 		// Make sure the page content module is already installed, and if not bail out:
 		$page_content_is_installed = DB::fetch_one("SELECT `installed` FROM `modules` WHERE `name` = 'PageContent'");
 		if (!$page_content_is_installed) {
@@ -680,6 +750,10 @@ class BlogManager extends AbstractModuleController {
 			DB::insert("INSERT INTO `module_pages` (`module_id`,`page_name`,`is_primary`) VALUES (?,'blog',1), (?,'blog',0)",array($blog_module_id,$page_module_id));
 			// Install the blog module as secondary on the content_editor page so that it can respond to successful save event of page
 			DB::insert("INSERT INTO `module_pages` (`module_id`,`page_name`,`is_primary`) VALUES (?,'content_editor',0)",array($blog_module_id));
+			DB::query("REPLACE INTO `system_settings` (`constant_name`, `friendly_name`, `description`, `value`, `required`, `group_name`) VALUES
+			('BLOG_RECENT_ENTRY_COUNT', 'No. of Recent Entries to Display', 'This affects the blog main page and category top-level pages. Defaults to 5 if left blank.', '', 0, 'Blog'),
+			('BLOG_PAGINATION_LINKS_TO_DISPLAY', 'No. of Pagination Links in Archive', 'How many links to display in the blog archive pagination. Defaults to 10 if left blank.', '', 0, 'Blog'),
+			('BLOG_FEED_TITLE','RSS Feed Title','Custom title for the RSS feed if you don&rsquo;t want to use the website title. Defaults to &ldquo;Blog Feed :: [website title]&rdquo; if left blank.','',0,'Blog')");
 			Permissions::add(__CLASS__,array('new' => 99, 'edit' => 99, 'delete' => 99, 'edit_blog_comment' => 99, 'delete_blog_comment' => 99),true);
 		}
 	}
@@ -699,6 +773,7 @@ class BlogManager extends AbstractModuleController {
 		DB::query("DELETE FROM `menus` WHERE `var_name` = 'blog_categories'");
 		// Remove module from pages:
 		DB::query("DELETE FROM `module_pages` WHERE `page_name` = 'blog' OR `page_name` LIKE 'blog/%'");
+		DB::qruey("DELETE FROM `system_settings` WHERE `constant_name` LIKE 'BLOG_%'");
 		Permissions::remove(__CLASS__);
 	}
 	/**

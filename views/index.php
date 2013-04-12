@@ -42,24 +42,27 @@ if (empty($blog_entries)) {
 	foreach ($blog_entries as $index => $entry) {
 		if (!$entry->is_draft() || $BlogManager->user_can_edit()) {
 			$actual_display_count += 1;
+			$fcache = new FragmentCache('Blog', $entry->id());
 			$comment_count = (!empty($blog_comment_count) && (!empty($blog_comment_count[$entry->id()]))) ? $blog_comment_count[$entry->id()] : 0;
-			?><div class="index-blog-entry">
-				<p class="small" style="float: right"><a href="<?php echo $BlogManager->url('show',$entry) ?>#blog-comments"><?php echo $comment_count ?> Comment<?php echo ($comment_count != 1) ? 's' : ''; ?></a></p>
-				<h3><a href="<?php echo $BlogManager->url('show',$entry) ?>"><?php echo $entry->title(); ?></a><?php
-				if ($entry->is_draft()) {
-					?> <span class="small">(Draft)</span><?php
-				}
-				?></h3>
+			?><div class="index-blog-entry"><p class="small" style="float: right"><a href="<?php echo $BlogManager->url('show',$entry) ?>#blog-comments"><?php echo $comment_count ?> Comment<?php echo ($comment_count != 1) ? 's' : ''; ?></a></p><?php
+			if ($fcache->start('entry-list-item')) {
+				?><h3><a href="<?php echo $BlogManager->url('show',$entry) ?>"><?php echo $entry->title(); ?></a><?php
+					if ($entry->is_draft()) {
+						?> <span class="small">(Draft)</span><?php
+					}
+					?></h3>
 				<p class="small"><?php
-			?><strong>Published:</strong> <?php
-			echo Crumbs::date_format($entry->post_date(),'g:ia F jS, Y');
-			if ($entry->post_date() != $entry->updated_date()) {
-				?><br><strong>Updated:</strong> <?php
-				echo Crumbs::date_format($entry->updated_date(),'g:ia F jS, Y'); ?><?php
-			}
-			?></p><?php
-			if ($entry->teaser()) {
-				print H::purify_html($entry->teaser(),array('allowed' => $allowed_html));
+				?><strong>Published:</strong> <?php
+				echo Crumbs::date_format($entry->post_date(),'g:ia F jS, Y');
+				if ($entry->post_date() != $entry->updated_date()) {
+					?><br><strong>Updated:</strong> <?php
+					echo Crumbs::date_format($entry->updated_date(),'g:ia F jS, Y'); ?><?php
+				}
+				?></p><?php
+				if ($entry->teaser()) {
+					print H::purify_html($entry->teaser(),array('allowed' => $allowed_html));
+				}
+				$fcache->end('entry-list-item');
 			}
 			?></div><?php
 		}

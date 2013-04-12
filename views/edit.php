@@ -75,12 +75,8 @@ if ($blog->is_new()) {
 echo Form::footer($BlogManager, $blog, (!$blog->is_new() && $BlogManager->user_can_delete()), 'Save', $return_url, 'this entry');
 ?>
 <script type="text/javascript" charset="utf-8">
-	document.observe("dom:loaded",function() {
-		jQuery('#blog-form').submit(function() {
-			new Biscuit.Ajax.FormValidator('blog-form');
-			return false;
-		});
-		Biscuit.Session.KeepAlive.init_form_observer();
+	$(document).ready(function() {
+		Biscuit.Crumbs.Forms.AddValidation('blog-form');
 	});
 	tinyMCE.init({
 		mode : "exact",
@@ -108,19 +104,7 @@ echo Form::footer($BlogManager, $blog, (!$blog->is_new() && $BlogManager->user_c
 		cleanup_on_startup: true,
 		<?php echo $Biscuit->ExtensionTinyMce()->theme_css_setting($Biscuit->Page) ?>
 		external_link_list_url : "/tiny_mce_link_list",
-		plugins : "table,safari,style,iespell,insertdatetime,preview,media,searchreplace,contextmenu,paste,pasteword,pastetext,directionality,fullscreen,noneditable,visualchars,nonbreaking,template,inlinepopups",
-		<?php
-		if ($PageContentManager->user_can_manage_pages()) {
-			// Add the TinyBrowser plugin to the RTE:
-			?>
-		file_browser_callback : "tinyBrowser",
-			<?php
-		}
-		?>
-		setup: function(ed) {
-			ed.onChange.add(function() {
-				Biscuit.Session.KeepAlive.ping();
-			});
-		}
+		plugins : "table,safari,style,iespell,insertdatetime,preview,media,searchreplace,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,template,inlinepopups",
+		file_browser_callback : "tinyBrowser"
 	});
 </script>

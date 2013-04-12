@@ -1,4 +1,5 @@
 <?php
+$fcache = new FragmentCache('Blog', $blog_entry->id());
 print $Navigation->render_admin_bar($BlogManager,$blog_entry,array(
 	'bar_title' => 'Blog Administration',
 	'has_edit_button' => $BlogManager->user_can_edit(),
@@ -18,13 +19,13 @@ echo $blog_entry->title();
 $comment_count = (empty($blog_total_comment_count) ? 0 : $blog_total_comment_count);
 ?>
 <p class="small" style="float: right"><a href="#blog-comments"><?php echo $comment_count ?> Comment<?php echo ($comment_count != 1) ? 's' : ''; ?></a></p><p class="small"><?php
-?><strong>Published:</strong> <?php echo Crumbs::date_format($blog_entry->post_date(),'g:ia F jS, Y');
-if ($blog_entry->post_date() != $blog_entry->updated_date()) {
-	?><br><strong>Updated:</strong> <?php echo Crumbs::date_format($blog_entry->updated_date(),'g:ia F jS, Y'); ?><?php
-}
-?></p>
-<?php
-$allowed_html = "p[class|style],
+if ($fcache->start('full-content')) {
+	?><strong>Published:</strong> <?php echo Crumbs::date_format($blog_entry->post_date(),'g:ia F jS, Y');
+	if ($blog_entry->post_date() != $blog_entry->updated_date()) {
+		?><br><strong>Updated:</strong> <?php echo Crumbs::date_format($blog_entry->updated_date(),'g:ia F jS, Y'); ?><?php
+	}
+	?></p><?php
+	$allowed_html = "p[class|style],
 				strong,
 				b,
 				i,
@@ -49,7 +50,9 @@ $allowed_html = "p[class|style],
 				table[width|cellpadding|cellspacing|border|class|style],
 				tr[class|style],
 				td[width|align|valign|style|class]";
-print H::purify_html($blog_entry->content(),array('allowed' => $allowed_html));
+	print H::purify_html($blog_entry->content(),array('allowed' => $allowed_html));
+	$fcache->end('full-content');
+}
 $share_button = $BlogManager->render_share_this_button();
 if (!empty($share_button)) {
 	echo '<p style="text-align: right">'.$share_button.'</p>';
