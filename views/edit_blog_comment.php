@@ -6,7 +6,7 @@
 	<?php print ModelForm::textarea($blog_comment,'comments',false,null,'Please be respectful. Inappropriate comments will be removed without notice.') ?>
 	<div class="controls"><a id="comment-form-cancel-button" href="#cancel-blog-comment">Cancel</a><input type="submit" name="SubmitButton" class="SubmitButton" value="Submit"></div>
 </form>
-<script type="text/javascript" charset="utf-8">
+<script type="text/javascript">
 	jQuery('#comment-form-cancel-button').click(function() {
 		BlogComments.close_form();
 		return false;

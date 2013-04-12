@@ -1,0 +1,4 @@
+name = "Blog"
+description = "A blog module. Requires the page content management module."
+version = "1.5"
+dependencies[] = "PageContent"

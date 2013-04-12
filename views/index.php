@@ -64,6 +64,18 @@ if (empty($blog_entries)) {
 				}
 				$fcache->end('entry-list-item');
 			}
+			if ($BlogManager->user_can_edit() || $BlogManager->user_can_delete()) {
+				?><div class="controls">
+					<?php
+					if ($BlogManager->user_can_delete()) {
+						?><a style="float: right; margin: 0 0 0 5px" href="<?php echo $BlogManager->url('delete',$entry->id()); ?>" class="delete-button" rel="Blog Entry|<?php echo Crumbs::entitize_utf8($entry->title()); ?>">Delete</a><?php
+					}
+					if ($BlogManager->user_can_edit()) {
+						?><a style="float: right; margin: 0 0 0 5px" href="<?php echo $BlogManager->url('edit',$entry->id()); ?>" class="edit-button">Edit</a><?php
+					}
+					?>
+				</div><?php
+			}
 			?></div><?php
 		}
 	}

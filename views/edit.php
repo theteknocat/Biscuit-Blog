@@ -25,28 +25,8 @@ $allowed_html = "p[class|style],
 				tr[class|style],
 				td[width|align|valign|style|class]";
 print Form::header($blog);
-if ($blog->is_new() || $blog->is_draft()) {
-	$post_date = date('Y-m-d H:i:s');
-} else {
-	$post_date = $blog->post_date();
-}
-if (!$blog->is_new() && $blog->is_draft()) {
-	$updated_date = $post_date;
-} else {
-	$updated_date = date('Y-m-d H:i:s');
-}
 ?>
-<input type="hidden" name="blog[post_date]" value="<?php echo $post_date ?>">
-<input type="hidden" name="blog[updated_date]" value="<?php echo $updated_date ?>">
-<?php
-// The edit action checks to ensure that the current page is not the top level and spits out an error if trying to add a new entry from the top level
-if ($blog->is_new()) {
-	$cat_id = $Biscuit->Page->id();
-} else {
-	$cat_id = $blog->category_id();
-}
-?>
-<input type="hidden" name="blog[category_id]" value="<?php echo $cat_id ?>">
+<input type="hidden" name="was_draft" value="<?php echo $blog->is_draft(); ?>">
 <fieldset>
 	<legend>Entry Content</legend>
 	<?php echo ModelForm::text($blog,'title') ?>
@@ -74,37 +54,34 @@ if ($blog->is_new()) {
 }
 echo Form::footer($BlogManager, $blog, (!$blog->is_new() && $BlogManager->user_can_delete()), 'Save', $return_url, 'this entry');
 ?>
-<script type="text/javascript" charset="utf-8">
+<script type="text/javascript">
 	$(document).ready(function() {
 		Biscuit.Crumbs.Forms.AddValidation('blog-form');
-	});
-	tinyMCE.init({
-		mode : "exact",
-		elements: "attr_teaser,attr_content",
-		theme: 'advanced',
-		theme_advanced_buttons1: 'undo,redo,|,pasteword,pastetext,|,search,replace,|,justifyleft,justifycenter,justifyright,justifyfull,|,indent,outdent,|,bullist,numlist,|,hr,|,anchor,link,unlink,image,|,charmap<?php if ($Authenticator->user_is_super()) { ?>,|,code<?php } ?>',
-		theme_advanced_buttons2: 'bold,italic,underline,|,sup,sub,styleselect,formatselect,removeformat',
-		theme_advanced_buttons3: 'table,tablecontrols',
-		theme_advanced_buttons4: null,
-		theme_advanced_buttons5: null,
-		theme_advanced_buttons6: null,
-		theme_advanced_toolbar_align: 'left',
-		theme_advanced_toolbar_location: 'top',
-		theme_advanced_resizing: true,
-		theme_advanced_resize_horizontal: false,
-		theme_advanced_statusbar_location: 'bottom',
-		theme_advanced_blockformats: "p,h1,h2,h3,h4",
-		relative_urls: false,
-		remove_script_host: true,
-		document_base_url: "<?php echo STANDARD_URL ?>/",
-		skin: 'o2k7',
-		skin_variant: 'silver',
-		width: 610,
-		height: 600,
-		cleanup_on_startup: true,
-		<?php echo $Biscuit->ExtensionTinyMce()->theme_css_setting($Biscuit->Page) ?>
-		external_link_list_url : "/tiny_mce_link_list",
-		plugins : "table,safari,style,iespell,insertdatetime,preview,media,searchreplace,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,template,inlinepopups",
-		file_browser_callback : "tinyBrowser"
+		$('#attr_teaser, #attr_content').tinymce({
+			theme: 'advanced',
+			theme_advanced_buttons1: 'undo,redo,|,pasteword,pastetext,|,search,replace,|,justifyleft,justifycenter,justifyright,justifyfull,|,indent,outdent,|,bullist,numlist,|,hr,|,anchor,link,unlink,image,|,charmap',
+			theme_advanced_buttons2: 'bold,italic,underline,|,sup,sub,styleselect,formatselect,removeformat',
+			theme_advanced_buttons3: 'table,tablecontrols,|,code',
+			theme_advanced_buttons4: null,
+			theme_advanced_buttons5: null,
+			theme_advanced_buttons6: null,
+			theme_advanced_toolbar_align: 'left',
+			theme_advanced_toolbar_location: 'top',
+			theme_advanced_resizing: true,
+			theme_advanced_resize_horizontal: false,
+			theme_advanced_statusbar_location: 'bottom',
+			theme_advanced_blockformats: "p,h1,h2,h3,h4",
+			relative_urls: false,
+			remove_script_host: true,
+			document_base_url: "<?php echo STANDARD_URL ?>/",
+			skin: 'cirkuit',
+			width: 626,
+			height: 600,
+			cleanup_on_startup: true,
+			<?php echo $Biscuit->ExtensionTinyMce()->theme_css_setting($Biscuit->Page) ?>
+			external_link_list_url : "/tiny_mce_link_list",
+			plugins : "table,safari,style,iespell,insertdatetime,preview,media,searchreplace,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,template,jqueryinlinepopups",
+			file_browser_callback : "<?php echo $file_browser_callback ?>"
+		});
 	});
 </script>

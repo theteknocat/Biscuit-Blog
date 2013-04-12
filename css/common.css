@@ -23,11 +23,7 @@
 .controls a.comment-delete:visited,
 .controls a.comment-delete:focus,
 .controls a.comment-delete:active {
-	color: #c50800;
-}
-
-.controls a.comment-delete:hover {
-	color: #8b0600;
+	color: #C50800 !important;
 }
 
 .index-blog-entry, .blog-comment {

@@ -19,54 +19,47 @@ var BlogComments = {
 			}
 			return false;
 		});
-		this.add_del_button_handler();
 		this.add_pagination_handler();
 	},
-	add_del_button_handler: function() {
-		$('.comment-delete').live('click',function() {
-			var rel = $(this).attr('rel');
-			var del_url = $(this).attr('href');
-			if (del_url.match(/\?/)) {
-				del_url += '&';
-			} else {
-				del_url += '?';
-			}
-			del_url += 'delete_confirmed=1';
-			var comment_container = $(this).parent().parent();
-			var del_button = $(this);
-			Biscuit.Crumbs.Confirm("<h4><strong>Are you sure you want to delete "+rel+"?</strong></h4><p>This action cannot be undone.</p>",function() {
-				$('#blog-comment-load-throbber').show();
-				del_button.hide();
-				Biscuit.Ajax.Request(del_url,'update',{
-					complete: function() {
-						$('#blog-comment-load-throbber').hide();
-					},
-					success: function(html) {
-						Biscuit.Console.log("Comment deleted");
-						// Visually remove the comment from the page:
-						comment_container.slideUp('normal',function() {
-							$(this).remove();
-							// Modify the comments heading to reflect the new count:
-							var comment_count = parseInt($('#blog-entry-comments > h3:first').text().match(/[0-9]+/));
-							comment_count -= 1;
-							if (comment_count > 0) {
-								var comment_heading = comment_count+" Comment";
-								if (comment_count > 1) {
-									comment_heading += "s";
-								}
-								$('#blog-entry-comments > h3:first').text(comment_heading);
-							} else {
-								$('#blog-entry-comments > h3:first').remove();
-							}
-						});
-					},
-					error: function() {
-						del_button.show();
-						Biscuit.Crumbs.Alert('<h4 class="attention"><strong>Unable to delete comment! Please contact the system administrator.</strong></h4>');
+	delete: function(target_el) {
+		var del_button = $(target_el);
+		var comment_container = del_button.parent().parent();
+		var del_url = del_button.attr('href');
+		if (del_url.match(/\?/)) {
+			del_url += '&';
+		} else {
+			del_url += '?';
+		}
+		del_url += 'delete_confirmed=1';
+		$('#blog-comment-load-throbber').show();
+		del_button.hide();
+		Biscuit.Ajax.Request(del_url,'server_action',{
+			complete: function() {
+				$('#blog-comment-load-throbber').hide();
+			},
+			success: function(html) {
+				Biscuit.Console.log("Comment deleted");
+				// Visually remove the comment from the page:
+				comment_container.slideUp('normal',function() {
+					$(this).remove();
+					// Modify the comments heading to reflect the new count:
+					var comment_count = parseInt($('#blog-entry-comments > h3:first').text().match(/[0-9]+/));
+					comment_count -= 1;
+					if (comment_count > 0) {
+						var comment_heading = comment_count+" Comment";
+						if (comment_count > 1) {
+							comment_heading += "s";
+						}
+						$('#blog-entry-comments > h3:first').text(comment_heading);
+					} else {
+						$('#blog-entry-comments > h3:first').remove();
 					}
 				});
-			}, "Delete "+rel);
-			return false;
+			},
+			error: function() {
+				del_button.show();
+				Biscuit.Crumbs.Alert('<h4 class="attention"><strong>Unable to delete comment! Please contact the system administrator.</strong></h4>');
+			}
 		});
 	},
 	add_pagination_handler: function() {

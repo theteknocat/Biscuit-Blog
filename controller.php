@@ -1,20 +1,21 @@
 <?php
-require_once('models/blog_comment_subscriber.php');
 /**
  * Blog module
  *
  * @package Modules
+ * @subpackage Blog
  * @author Peter Epp
  * @copyright Copyright (c) 2009 Peter Epp (http://teknocat.org)
  * @license GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl.html)
- * @version 1.0
+ * @version 1.0 $Id: controller.php 14350 2011-10-26 18:17:34Z teknocat $
  */
 class BlogManager extends AbstractModuleController {
 	protected $_dependencies = array('primary' => 'PageContent','primary' => "HtmlPurify", "new" => "TinyMce", "edit" => "TinyMce");
 	protected $_models = array(
 		'Blog' => 'Blog',
 		'BlogComment' => 'BlogComment',
-		'Page' => 'Page'
+		'Page' => 'Page',
+		'BlogCommentSubscriber' => 'BlogCommentSubscriber'
 	);
 	/**
 	 * How many recent entries to show in list on top level page
@@ -187,6 +188,11 @@ class BlogManager extends AbstractModuleController {
 	protected function action_edit($mode = 'edit') {
 		if ($this->action() == 'edit' || $this->action() == 'new') {
 			$this->Biscuit->ExtensionTinyMce()->register_components();
+			if ($this->Biscuit->module_exists('FileManager')) {
+				$this->set_view_var('file_browser_callback', 'FileManagerActivate.tiny_mce');
+			} else {
+				$this->set_view_var('file_browser_callback', 'tinyBrowser');
+			}
 			$this->register_css(array('filename' => 'edit.css', 'media' => 'screen'));
 			if ($this->action() == 'new' && $this->at_top_level()) {
 				// Not allowed to create new entry from the top level, must be in a sub-category
@@ -215,7 +221,6 @@ class BlogManager extends AbstractModuleController {
 	 */
 	protected function action_show() {
 		$this->register_js('footer','comments.js');
-		$this->register_js('footer','jquery-ui-1.8.1.effect-highlight.min.js');
 		$entry = $this->Blog->find($this->params['id']);
 		if (!$entry) {
 			throw new RecordNotFoundException();
@@ -387,7 +392,7 @@ class BlogManager extends AbstractModuleController {
 	 */
 	protected function action_rss_feed() {
 		$this->Biscuit->render_with_template(false);
-		require_once('lib/vendor/FeedWriter/FeedWriter.php');
+		require_once('biscuit-core/vendor/FeedWriter/FeedWriter.php');
 		Response::content_type('application/rss+xml; charset=utf-8');
 		$blogs = $this->Blog->find_all(array('post_date' => 'DESC'));
 		$last_updated = strtotime($blogs[0]->post_date());
@@ -398,13 +403,14 @@ class BlogManager extends AbstractModuleController {
 
 		// Setting the channel elements
 		// Use wrapper functions for common elements
-		if (defined('BLOG_FEED_TITLE')) {
+		if (defined('BLOG_FEED_TITLE') && BLOG_FEED_TITLE) {
 			$feed_title = BLOG_FEED_TITLE;
 		} else {
 			$feed_title = 'Blog Feed :: '.SITE_TITLE;
 		}
+		Console::log("Blog feed title: ".$feed_title);
 		$feed->setTitle($feed_title);
-		$feed_link = STANDARD_URL.'/blog_feed.xml';
+		$feed_link = STANDARD_URL.'/var/feeds/blog_feed.xml';
 		$feed->setLink($feed_link);
 		$feed->setDescription(H::purify_text($this->Biscuit->Page->content()));
 
@@ -529,7 +535,8 @@ class BlogManager extends AbstractModuleController {
 			// as primary will become secondary
 			$this->Biscuit->install_module_on_page('Blog',$model->slug(),1);
 		} else if ($class_name == 'Blog') {
-			@unlink(SITE_ROOT.'/blog_feed.xml');
+			@unlink(SITE_ROOT.'/var/feeds/blog_feed.xml');
+			$this->_return_url = $this->url('show',$model->id());
 		} else if ($class_name == 'BlogComment') {
 			$this->set_successful_save_ajax_action('display_comments');
 			$this->set_view_var('new_comment_posted',true);
@@ -548,7 +555,7 @@ class BlogManager extends AbstractModuleController {
 	protected function subscribe_user_to_comments($blog_comment) {
 		if (!empty($this->params['subscribe_to_comments'])) {
 			$email = $blog_comment->email();
-			$subscriber_factory = new ModelFactory('BlogCommentSubscriber');
+			$subscriber_factory = ModelFactory::instance('BlogCommentSubscriber');
 			$subscriber_data = array(
 				'blog_id' => $blog_comment->blog_id(),
 				'name'    => $blog_comment->username(),
@@ -597,7 +604,7 @@ class BlogManager extends AbstractModuleController {
 	protected function act_on_successful_delete($model) {
 		$class_name = get_class($model);
 		if ($class_name == 'Page' || $class_name == 'Blog') {
-			@unlink(SITE_ROOT.'/blog_feed.xml');
+			@unlink(SITE_ROOT.'/var/feeds/blog_feed.xml');
 		}
 	}
 	protected function act_on_compile_footer() {
@@ -645,20 +652,46 @@ class BlogManager extends AbstractModuleController {
 	 */
 	protected function act_on_content_compiled() {
 		if ($this->action() == 'rss_feed') {
-			$compiled_content = $this->Biscuit->get_compiled_content();
-			// Replace links that start with a slash with the fully qualified URL:
-			$compiled_content = preg_replace('/href=\"\//','href="'.STANDARD_URL.'/',$compiled_content);
-			$compiled_content = preg_replace('/src=\"\//','src="'.STANDARD_URL.'/',$compiled_content);
-			$this->Biscuit->set_compiled_content($compiled_content);
-			// Cache to file for subsequent requests:
-			file_put_contents(SITE_ROOT.'/blog_feed.xml',$compiled_content);
+			if (Crumbs::ensure_directory(SITE_ROOT.'/var/feeds')) {
+				$compiled_content = $this->Biscuit->get_compiled_content();
+				// Replace links that start with a slash with the fully qualified URL:
+				$compiled_content = preg_replace('/href=\"\//','href="'.STANDARD_URL.'/',$compiled_content);
+				$compiled_content = preg_replace('/src=\"\//','src="'.STANDARD_URL.'/',$compiled_content);
+				$this->Biscuit->set_compiled_content($compiled_content);
+				// Cache to file for subsequent requests:
+				file_put_contents(SITE_ROOT.'/var/feeds/blog_feed.xml',$compiled_content);
+			}
 		}
 	}
+	/**
+	 * When this module is primary, it's primary page is always the one being currently viewed. Otherwise we'll defer to the abstract method
+	 *
+	 * @return void
+	 * @author Peter Epp
+	 */
+	public function primary_page() {
+		if ($this->is_primary()) {
+			$this->_primary_page = $this->Biscuit->Page->slug();
+			return $this->_primary_page;
+		}
+		return parent::primary_page();
+	}
+	/**
+	 * Handle some custom URLs for this module
+	 *
+	 * @param string $action 
+	 * @param string $id 
+	 * @return void
+	 * @author Peter Epp
+	 */
 	public function url($action=null,$id=null) {
 		if ($action == 'rss') {
-			return '/blog_feed.xml';
+			return '/var/feeds/blog_feed.xml';
 		}
-		if ($action == 'show' || $action == 'edit') {
+		if ($action == 'archive') {
+			$page_slug = trim($this->Biscuit->Page->slug(),'/');
+			return '/'.$page_slug.'/archive';
+		} else if ($action == 'show' || $action == 'edit') {
 			// We use the abstract controller's $_models_for_show_url array to cache entry models here to avoid double-caching
 			// when the friendly_show_slug() method is called
 			if (is_object($id)) {
@@ -777,29 +810,20 @@ class BlogManager extends AbstractModuleController {
 		Permissions::remove(__CLASS__);
 	}
 	/**
-	 * Provide special rewrite rule for the archive action
+	 * Provide special URI mapping rules
 	 *
 	 * @return array
 	 * @author Peter Epp
 	 */
-	public static function rewrite_rules() {
+	public static function uri_mapping_rules() {
 		require_once('factories/blog_factory.php');
-		$blog_factory = new BlogFactory();
+		$blog_factory = ModelFactory::instance('Blog');
 		$top_level_slug = $blog_factory->get_top_level();
-		return array(
-			array(
-				'pattern' => '/^([^\.]+)\/archive$/',
-				'replacement' => 'page_slug=$1&action=archive'
-			),
-			array(
-				'pattern' => '/^([^\.]+)\/display_comments\/([0-9]+)$/',
-				'replacement' => 'page_slug=$1&action=display_comments&id=$2'
-			),
-			array(
-				'pattern' => '/^blog_feed\.xml$/',
-				'replacement' => 'page_slug='.$top_level_slug.'&action=rss_feed'
-			)
+		$mapping_rules = array(
+			'/^(?P<page_slug>[^\.]+)\/(?P<action>archive)$/',
+			'/^(?P<page_slug>[^\.]+)\/(?P<action>display_comments)\/(?P<id>[0-9]+)$/'
 		);
+		$mapping_rules['page_slug='.$top_level_slug.'&action=rss_feed'] = '/^var\/feeds\/blog_feed\.xml$/';
+		return $mapping_rules;
 	}
 }
-?>

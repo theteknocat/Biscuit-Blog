@@ -3,10 +3,9 @@
  * Mode the blog_comments table
  *
  * @package Modules
+ * @subpackage Blog
  * @author Peter Epp
- * @copyright Copyright (c) 2009 Peter Epp (http://teknocat.org)
- * @license GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl.html)
- * @version 1.0
+ * @version $Id: blog_comment.php 13843 2011-07-27 19:45:49Z teknocat $
  */
 class BlogComment extends AbstractModel {
 	/**

@@ -58,7 +58,7 @@ if (!empty($share_button)) {
 	echo '<p style="text-align: right">'.$share_button.'</p>';
 }
 ?>
-<script type="text/javascript" charset="utf-8">
+<script type="text/javascript">
 	var NewBlogCommentUrl = '<?php echo $BlogManager->url("new_blog_comment") ?>?blog_comment_defaults[blog_id]=<?php echo $blog_entry->id(); ?>';
 </script>
 <h3><img style="display: none" id="blog-comment-load-throbber" src="/modules/blog/images/throbber.gif" alt="Please wait..."><a href="#leave-comment" id="blog-comment-form-link">Leave a Comment</a></h3>
